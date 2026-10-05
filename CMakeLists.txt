@@ -56,6 +56,11 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
             graphics_lab_options
     )
 
+    target_compile_definitions(graphics_lab
+        PRIVATE
+            GRAPHICS_LAB_SHADER_DIR="${CMAKE_CURRENT_SOURCE_DIR}/shaders"
+    )
+
     if(MSVC)
         target_compile_options(graphics_lab PRIVATE /W4 /permissive-)
     else()
