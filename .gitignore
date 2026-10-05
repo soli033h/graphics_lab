@@ -1,0 +1,50 @@
+# CMake build directories and generated files
+/build/
+/build-*/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+install_manifest.txt
+Makefile
+compile_commands.json
+CMakeUserPresets.json
+
+# Native build artifacts
+/bin/
+/obj/
+*.a
+*.dll
+*.exe
+*.exp
+*.ilk
+*.lib
+*.o
+*.obj
+*.pdb
+*.so
+*.dylib
+
+# IDE metadata
+.vs/
+.idea/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Keep shared VS Code tasks/settings trackable, but ignore local state and logs
+.vscode/*.log
+.vscode/*.local.json
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary and editor files
+*.swp
+*.swo
+*~
+*.tmp
+*.bak
