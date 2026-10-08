@@ -129,9 +129,13 @@ int main()
     }
 
     const float vertices[] = {
-         0.0f,  0.6f,
-        -0.6f, -0.6f,
-         0.6f, -0.6f
+        -0.6f,  0.6f,
+         0.6f,  0.6f,
+         0.6f, -0.6f,
+
+        -0.6f,  0.6f,
+         0.6f, -0.6f,
+        -0.6f, -0.6f
     };
 
     glGenVertexArrays(1, &vertex_array);
@@ -154,7 +158,7 @@ int main()
 
         glUseProgram(shader_program);
         glBindVertexArray(vertex_array);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
