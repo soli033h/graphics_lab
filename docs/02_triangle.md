@@ -516,7 +516,7 @@ uniform float time;
 
 ```glsl
 const float two_pi_over_three = 2.0943951;
-const vec3 color = 0.5 + 0.5 * vec3(
+vec3 color = 0.5 + 0.5 * vec3(
     sin(time),
     sin(time + two_pi_over_three),
     sin(time + 2.0 * two_pi_over_three));
@@ -557,3 +557,51 @@ glUniform1f(
 
 `glUseProgram`을 먼저 호출하는 이유는 uniform 값이 현재 선택된 셰이더 프로그램에 기록되기 때문입니다.
 시간을 매 프레임 다시 전달하므로 프래그먼트 셰이더가 매 프레임 다른 색상을 계산합니다.
+
+### Q7. `GLSL Lint: Failed to spawn 'glslangValidator' binary` 오류는 무엇인가요?
+
+다음과 같은 오류가 표시될 수 있습니다.
+
+```text
+GLSL Lint: Failed to spawn 'glslangValidator' binary.
+Error: spawn glslangValidator.exe ENOENT
+```
+
+이 오류는 셰이더 코드 자체의 컴파일 오류라기보다, GLSL Lint 확장이 외부 검사 프로그램인
+`glslangValidator.exe`를 실행하려고 했지만 파일을 찾지 못했다는 뜻입니다.
+
+`ENOENT`는 운영체제가 지정된 파일 또는 경로를 찾지 못했다는 의미입니다.
+주로 다음과 같은 경우에 발생합니다.
+
+* `glslangValidator`가 컴퓨터에 설치되어 있지 않습니다.
+* 실행 파일은 설치되어 있지만 해당 폴더가 `PATH` 환경 변수에 없습니다.
+* GLSL Lint 설정에 지정한 실행 파일 경로가 실제 위치와 다릅니다.
+* VS Code를 실행할 때 변경된 `PATH`가 아직 반영되지 않았습니다.
+
+이 도구는 VS Code에서 저장하거나 편집할 때 GLSL 문법을 미리 검사하는 별도의 린터입니다.
+따라서 이 오류가 발생해도 프로그램 실행 중 OpenGL 드라이버가 셰이더를 컴파일하는 과정과는 별개입니다.
+
+앞서 발생한 다음 오류와도 구분해야 합니다.
+
+```text
+ERROR: 0:10: '=' : assigning non-constant ...
+```
+
+이 메시지는 GLSL 컴파일러가 실제 셰이더 코드를 검사하다가 발견한 문법·타입 오류입니다.
+반면 `spawn glslangValidator.exe ENOENT`는 검사할 외부 실행 파일 자체를 찾지 못한 오류입니다.
+
+해결 방법은 다음 중 하나입니다.
+
+1. `glslangValidator`를 설치합니다.
+2. `glslangValidator.exe`가 있는 폴더를 Windows `PATH`에 추가합니다.
+3. 사용 중인 GLSL Lint 확장의 설정에서 실행 파일의 정확한 절대 경로를 지정합니다.
+4. `PATH`를 변경했다면 VS Code를 완전히 다시 시작합니다.
+
+터미널에서 다음 명령이 정상적으로 실행되는지도 확인할 수 있습니다.
+
+```powershell
+glslangValidator --version
+```
+
+명령을 찾을 수 없다는 메시지가 나오면 현재 VS Code와 터미널에서 `glslangValidator`를 찾지 못하는 상태입니다.
+린터를 사용하지 않을 경우에는 해당 확장을 비활성화해도 되지만, 셰이더의 정적 문법 검사를 받으려면 실행 파일을 설치하고 경로를 올바르게 설정하는 편이 좋습니다.
