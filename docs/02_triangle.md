@@ -500,3 +500,60 @@ glDrawElements(
 | `glDrawElements` | 정점 4개 + 인덱스 6개 | `glDrawElements` |
 
 현재 단계에서는 `glDrawArrays`로 정점 6개를 사용하는 방법이 구조를 이해하기 쉽고, 이후 EBO를 배우면 정점 재사용 방식으로 확장할 수 있습니다.
+
+### Q5. 시간에 따라 도형의 색상을 바꿀 수 있나요?
+
+가능합니다. CPU에서 현재 시간을 가져와 셰이더의 `uniform` 변수로 전달하면 됩니다.
+`uniform`은 모든 정점 또는 프래그먼트가 공통으로 읽을 수 있는 셰이더 입력값입니다.
+
+프래그먼트 셰이더에는 시간값을 받을 변수를 선언합니다.
+
+```glsl
+uniform float time;
+```
+
+그리고 `sin` 함수를 이용해 색상 성분을 반복적으로 변화시킵니다.
+
+```glsl
+const float two_pi_over_three = 2.0943951;
+const vec3 color = 0.5 + 0.5 * vec3(
+    sin(time),
+    sin(time + two_pi_over_three),
+    sin(time + 2.0 * two_pi_over_three));
+
+fragment_color = vec4(color, 1.0);
+```
+
+`sin`의 결과는 `-1.0`부터 `1.0` 사이입니다.
+여기에 `0.5`를 곱하고 `0.5`를 더하면 색상에 사용할 수 있는 `0.0`부터 `1.0` 사이로 변환됩니다.
+
+```text
+sin(time)             → -1.0 ~ 1.0
+0.5 + 0.5 * sin(time) →  0.0 ~ 1.0
+```
+
+RGB 성분마다 위상(phase)을 조금씩 다르게 주었기 때문에 세 색상이 서로 다른 시점에 밝아지며 색상이 계속 변합니다.
+`2.0943951`은 `2π / 3`에 해당하는 값입니다.
+
+### Q6. C++에서 셰이더에 시간을 어떻게 전달하나요?
+
+먼저 셰이더 프로그램에서 `time` uniform의 위치를 얻습니다.
+
+```cpp
+const GLint time_location = glGetUniformLocation(shader_program, "time");
+```
+
+그 다음 렌더링 루프에서 현재 시간을 전달합니다.
+
+```cpp
+glUseProgram(shader_program);
+glUniform1f(
+    time_location,
+    static_cast<float>(glfwGetTime()));
+```
+
+`glfwGetTime()`은 GLFW가 초기화된 이후 경과한 시간을 초 단위의 `double`로 반환합니다.
+`glUniform1f`는 `float` 타입의 uniform을 설정하므로 `static_cast<float>`로 변환합니다.
+
+`glUseProgram`을 먼저 호출하는 이유는 uniform 값이 현재 선택된 셰이더 프로그램에 기록되기 때문입니다.
+시간을 매 프레임 다시 전달하므로 프래그먼트 셰이더가 매 프레임 다른 색상을 계산합니다.

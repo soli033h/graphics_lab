@@ -128,6 +128,16 @@ int main()
         return EXIT_FAILURE;
     }
 
+    const GLint time_location = glGetUniformLocation(shader_program, "time");
+    if (time_location < 0)
+    {
+        std::cerr << "Failed to find shader uniform: time\n";
+        glDeleteProgram(shader_program);
+        glfwDestroyWindow(window);
+        glfwTerminate();
+        return EXIT_FAILURE;
+    }
+
     const float vertices[] = {
         -0.5f,  0.5f,
          0.5f,  0.5f,
@@ -157,6 +167,7 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shader_program);
+        glUniform1f(time_location, static_cast<float>(glfwGetTime()));
         glBindVertexArray(vertex_array);
         glDrawArrays(GL_TRIANGLES, 0, 6);
 
