@@ -113,7 +113,6 @@ int main()
     GLuint shader_program = 0;
     GLuint vertex_array = 0;
     GLuint vertex_buffer = 0;
-    GLuint element_buffer = 0;
 
     try
     {
@@ -129,45 +128,29 @@ int main()
         return EXIT_FAILURE;
     }
 
-    const GLint time_location = glGetUniformLocation(shader_program, "time");
-    if (time_location < 0)
-    {
-        std::cerr << "Failed to find shader uniform: time\n";
-        glDeleteProgram(shader_program);
-        glfwDestroyWindow(window);
-        glfwTerminate();
-        return EXIT_FAILURE;
-    }
-
     const float vertices[] = {
-            -0.6f,  0.6f,  // A: 0
-            0.6f,  0.6f,  // B: 1
-            0.6f, -0.6f,  // C: 2
-            -0.6f, -0.6f   // D: 3
+         0.0f,  0.6f,  1.0f, 0.0f, 0.0f, // position, red
+        -0.6f, -0.6f, 0.0f, 1.0f, 0.0f, // position, green
+         0.6f, -0.6f, 0.0f, 0.0f, 1.0f  // position, blue
     };
-
-    const unsigned int indices[] = {
-        0, 1, 2,
-        0, 2, 3
-    };
-    constexpr GLsizei index_count =
-        static_cast<GLsizei>(sizeof(indices) / sizeof(indices[0]));
 
     glGenVertexArrays(1, &vertex_array);
     glGenBuffers(1, &vertex_buffer);
-    glGenBuffers(1, &element_buffer);
     glBindVertexArray(vertex_array);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), nullptr);
+    constexpr GLsizei stride = 5 * sizeof(float);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, nullptr);
     glEnableVertexAttribArray(0);
+    glVertexAttribPointer(
+        1,
+        3,
+        GL_FLOAT,
+        GL_FALSE,
+        stride,
+        reinterpret_cast<void*>(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        sizeof(indices),
-        indices,
-        GL_STATIC_DRAW);
     glBindVertexArray(0);
 
     while (!glfwWindowShouldClose(window))
@@ -179,9 +162,8 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shader_program);
-        glUniform1f(time_location, static_cast<float>(glfwGetTime()));
         glBindVertexArray(vertex_array);
-        glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, nullptr);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -189,7 +171,6 @@ int main()
 
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteBuffers(1, &vertex_buffer);
-    glDeleteBuffers(1, &element_buffer);
     glDeleteProgram(shader_program);
     glfwDestroyWindow(window);
     glfwTerminate();

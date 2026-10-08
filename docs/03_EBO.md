@@ -448,3 +448,200 @@ VBO의 정점 선택
     ↓
 사각형 출력
 ```
+
+---
+
+## Q&A
+
+### Q1. `GLuint`는 정확히 어떤 타입인가요?
+
+`GLuint`는 OpenGL이 정의한 **부호 없는 정수형(unsigned integer type)** 별칭입니다.
+이름은 다음처럼 해석할 수 있습니다.
+
+```text
+GL + uint
+```
+
+OpenGL 헤더에서는 일반적으로 다음과 비슷하게 정의됩니다.
+
+```cpp
+typedef unsigned int GLuint;
+```
+
+구현과 헤더에 따라 내부 표현은 다를 수 있지만, OpenGL API에서 `GLuint`는 음수가 아닌 정수 값을 표현하는 타입으로 사용됩니다.
+따라서 C++의 `int`와 비슷한 정수 타입이지만, OpenGL 함수의 매개변수와 반환값에 맞는 타입이라는 점이 중요합니다.
+
+### Q2. `GLuint`는 왜 VAO, VBO, EBO에 사용하나요?
+
+`glGenBuffers`나 `glGenVertexArrays`는 C++ 객체 포인터를 반환하지 않습니다.
+대신 OpenGL이 내부에서 관리하는 객체를 가리킬 **이름(name)** 또는 **핸들(handle)**을 `GLuint` 값으로 기록합니다.
+
+```cpp
+GLuint vertex_array = 0;
+GLuint vertex_buffer = 0;
+GLuint element_buffer = 0;
+```
+
+각 변수에 저장되는 값은 실제 배열이나 GPU 메모리 자체가 아닙니다.
+
+```text
+vertex_array  → OpenGL이 관리하는 VAO의 이름
+vertex_buffer → OpenGL이 관리하는 VBO의 이름
+element_buffer → OpenGL이 관리하는 EBO의 이름
+```
+
+그 뒤 이 이름을 OpenGL 함수에 전달해 사용할 객체를 선택합니다.
+
+```cpp
+glGenBuffers(1, &vertex_buffer);
+glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
+```
+
+여기서 `vertex_buffer`는 C++에서 직접 접근하는 버퍼가 아니라, OpenGL에게 “이 이름의 버퍼를 사용하라”고 알려주는 식별자입니다.
+
+### Q3. `GLuint variable = 0`에서 `0`은 무슨 의미인가요?
+
+```cpp
+GLuint element_buffer = 0;
+```
+
+초기값 `0`은 아직 OpenGL 객체가 생성되어 연결되지 않았다는 의미로 사용하는 관례적인 값입니다.
+이후 다음 호출이 실제 객체 이름을 변수에 기록합니다.
+
+```cpp
+glGenBuffers(1, &element_buffer);
+```
+
+객체 이름을 받은 뒤에는 `element_buffer`가 0이 아닌 OpenGL 버퍼 이름을 가리키게 됩니다.
+
+```text
+초기 상태:
+element_buffer = 0
+
+glGenBuffers 이후:
+element_buffer = OpenGL이 생성한 버퍼 이름
+```
+
+다만 `0`은 특별한 “C++ null 포인터”가 아닙니다.
+`GLuint`는 정수이므로, 여기서 0은 단순한 정수값이며 OpenGL에서 기본 객체가 없거나 바인딩을 해제할 때도 사용됩니다.
+
+```cpp
+glBindVertexArray(0);
+glBindBuffer(GL_ARRAY_BUFFER, 0);
+```
+
+### Q4. `GLuint`와 `unsigned int`는 같은 것인가요?
+
+현재 환경의 OpenGL 헤더에서는 내부적으로 같거나 호환되는 경우가 많습니다.
+
+```cpp
+GLuint object_name;
+unsigned int ordinary_number;
+```
+
+두 변수 모두 음수가 아닌 정수를 저장할 수 있지만, 용도와 API 의미가 다릅니다.
+
+* `GLuint`: OpenGL API가 요구하는 부호 없는 정수 타입
+* `unsigned int`: C++에서 사용하는 일반 부호 없는 정수 타입
+
+예를 들어 EBO의 인덱스 배열은 다음처럼 작성할 수 있습니다.
+
+```cpp
+const unsigned int indices[] = {
+    0, 1, 2,
+    0, 2, 3
+};
+```
+
+이때 `indices`의 값은 정점 번호라는 일반 데이터이므로 `unsigned int`를 사용했습니다.
+반면 EBO 객체 자체의 이름은 OpenGL 객체 식별자이므로 `GLuint`를 사용합니다.
+
+```cpp
+GLuint element_buffer = 0;       // EBO 객체 이름
+const unsigned int indices[] = {  // EBO에 넣을 인덱스 데이터
+    0, 1, 2, 0, 2, 3
+};
+```
+
+### Q5. OpenGL 타입은 `GLuint` 말고도 있나요?
+
+있습니다. OpenGL은 API의 의도를 명확하게 하고 플랫폼별 타입 차이를 줄이기 위해 여러 타입 별칭을 제공합니다.
+
+| 타입 | 일반적인 의미 | 현재 예제에서의 사용 |
+|---|---|---|
+| `GLuint` | 부호 없는 OpenGL 정수 | VAO, VBO, EBO 이름 |
+| `GLint` | 부호 있는 OpenGL 정수 | uniform 위치, 상태 확인 결과 |
+| `GLsizei` | 크기 또는 개수 | `glDrawElements`의 인덱스 개수 |
+| `GLenum` | OpenGL 열거형 값 | `GL_ARRAY_BUFFER`, `GL_TRIANGLES` |
+| `GLfloat` | OpenGL 실수형 | `float`와 같은 용도의 값 |
+| `GLboolean` | OpenGL 불리언 값 | `GL_TRUE`, `GL_FALSE` |
+| `GLsizeiptr` | 버퍼 크기를 표현하는 타입 | `glBufferData`의 크기 |
+
+예를 들어 다음 호출을 보면:
+
+```cpp
+glDrawElements(GL_TRIANGLES, index_count, GL_UNSIGNED_INT, nullptr);
+```
+
+각 인자의 역할이 타입과 연결됩니다.
+
+```text
+GL_TRIANGLES   → GLenum: 그리기 방식
+index_count    → GLsizei: 읽을 인덱스 개수
+GL_UNSIGNED_INT → GLenum: EBO 원소의 자료형을 나타내는 열거형
+nullptr        → EBO 내부 시작 위치
+```
+
+### Q6. 왜 모든 변수에 `GLuint`를 사용하지 않나요?
+
+OpenGL 함수는 각 인자에 기대하는 의미와 범위를 가지고 있습니다.
+객체 이름, 개수, 상태값, 크기, 셰이더 위치는 서로 다른 종류의 값이므로 그에 맞는 타입을 사용합니다.
+
+예를 들어:
+
+```cpp
+GLuint vertex_buffer = 0; // 버퍼 객체의 이름
+GLint time_location = 0;  // uniform 위치. -1이 될 수 있음
+GLsizei index_count = 6;  // 그릴 인덱스 개수
+```
+
+`time_location`은 uniform을 찾지 못하면 `-1`이 반환될 수 있으므로 `GLuint`를 사용할 수 없습니다.
+부호 없는 타입에서는 음수 오류값을 제대로 표현할 수 없기 때문입니다.
+
+반대로 `index_count`는 개수이므로 음수가 될 수 없지만, `glDrawElements` API가 요구하는 개수 타입인 `GLsizei`를 사용합니다.
+
+### Q7. `GLuint` 변수와 GPU 버퍼의 실제 데이터는 같은 것인가요?
+
+아닙니다. 둘은 서로 다른 것입니다.
+
+```cpp
+GLuint element_buffer = 0;
+glGenBuffers(1, &element_buffer);
+```
+
+여기서 `element_buffer`에는 EBO의 이름만 저장됩니다.
+실제 인덱스 데이터는 다음 호출로 별도의 GPU 버퍼 저장 공간에 복사됩니다.
+
+```cpp
+glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
+glBufferData(
+    GL_ELEMENT_ARRAY_BUFFER,
+    sizeof(indices),
+    indices,
+    GL_STATIC_DRAW);
+```
+
+관계를 구분하면 다음과 같습니다.
+
+```text
+element_buffer 변수
+    → EBO를 찾기 위한 OpenGL 식별자
+
+indices 배열
+    → EBO에 업로드할 CPU 측 인덱스 데이터
+
+EBO 저장 공간
+    → glBufferData 이후 GPU가 읽는 실제 인덱스 데이터
+```
+
+즉, `GLuint`는 버퍼의 내용물이 아니라 **OpenGL 객체를 선택하기 위한 이름을 담는 타입**입니다.
