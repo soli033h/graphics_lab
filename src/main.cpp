@@ -128,6 +128,8 @@ int main()
         return EXIT_FAILURE;
     }
 
+    GLint time_location = glGetUniformLocation(shader_program, "time");
+
     const float vertices[] = {
          0.0f,  0.6f,  1.0f, 0.0f, 0.0f, // position, red
         -0.6f, -0.6f, 0.0f, 1.0f, 0.0f, // position, green
@@ -162,6 +164,9 @@ int main()
         glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shader_program);
+
+        glUniform1f(time_location, static_cast<float>(glfwGetTime()));
+
         glBindVertexArray(vertex_array);
         glDrawArrays(GL_TRIANGLES, 0, 3);
 
