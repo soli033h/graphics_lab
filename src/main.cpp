@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -117,8 +118,8 @@ int main()
     try
     {
         shader_program = create_shader_program(
-            std::string(GRAPHICS_LAB_SHADER_DIR) + "/basic.vert",
-            std::string(GRAPHICS_LAB_SHADER_DIR) + "/basic.frag");
+            std::string(GRAPHICS_LAB_SHADER_DIR) + "/shader.vert",
+            std::string(GRAPHICS_LAB_SHADER_DIR) + "/shader.frag");
     }
     catch (const std::exception& error)
     {
@@ -129,6 +130,7 @@ int main()
     }
 
     GLint time_location = glGetUniformLocation(shader_program, "time");
+    GLint offset_location = glGetUniformLocation(shader_program, "offset_x");
 
     const float vertices[] = {
          0.0f,  0.6f,  1.0f, 0.0f, 0.0f, // position, red
@@ -166,6 +168,9 @@ int main()
         glUseProgram(shader_program);
 
         glUniform1f(time_location, static_cast<float>(glfwGetTime()));
+
+        const float offset = 0.4f * std::sin(static_cast<float>(glfwGetTime()));
+        glUniform1f(offset_location, offset);
 
         glBindVertexArray(vertex_array);
         glDrawArrays(GL_TRIANGLES, 0, 3);
