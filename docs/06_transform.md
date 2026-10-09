@@ -501,3 +501,273 @@ uniform mat4로 셰이더에 전달
 ```
 
 정점 배열을 직접 수정하는 대신 행렬을 변경하면 같은 VBO와 EBO를 사용하면서도 도형을 이동하고, 회전하고, 확대·축소할 수 있습니다.
+
+---
+
+## Q&A
+
+### Q1. `glUniformMatrix4fv`의 인자는 각각 무엇을 의미하나요?
+
+행렬 uniform을 셰이더에 전달할 때 다음 함수를 사용합니다.
+
+```cpp
+glUniformMatrix4fv(
+    transform_location,
+    1,
+    GL_FALSE,
+    transform);
+```
+
+각 인자의 의미는 다음과 같습니다.
+
+```text
+transform_location
+    → transform uniform의 위치
+
+1
+    → 전달할 mat4 행렬의 개수
+
+GL_FALSE
+    → 행렬을 전치하지 않음
+
+transform
+    → 16개 float 배열의 시작 주소
+```
+
+함수 이름도 다음처럼 나눠 읽을 수 있습니다.
+
+```text
+glUniformMatrix4fv
+            │ │ │
+            │ │ └─ float 자료형
+            │ └─── 4x4 행렬
+            └───── uniform 행렬 설정
+```
+
+### Q2. `transform_location`은 무엇인가요?
+
+```cpp
+GLint transform_location =
+    glGetUniformLocation(shader_program, "transform");
+```
+
+`transform_location`은 셰이더의 `transform` uniform이 프로그램 내부에서 어느 위치에 있는지 나타내는 번호입니다.
+이 값 자체가 행렬 데이터는 아닙니다.
+
+```text
+"transform"
+    ↓ glGetUniformLocation
+uniform 위치 번호
+    ↓ glUniformMatrix4fv
+행렬 데이터 기록
+```
+
+uniform 위치는 셰이더 프로그램이 링크된 뒤 한 번 조회합니다.
+행렬 값은 애니메이션처럼 계속 바뀔 수 있으므로 필요할 때마다 다시 전달합니다.
+
+위치를 찾지 못하면 `glGetUniformLocation`은 `-1`을 반환할 수 있으므로 `GLint`를 사용합니다.
+
+### Q3. 두 번째 인자 `1`은 왜 필요한가요?
+
+```cpp
+glUniformMatrix4fv(
+    transform_location,
+    1,
+    GL_FALSE,
+    transform);
+```
+
+두 번째 인자는 전달할 행렬의 개수입니다.
+
+```text
+1 → mat4 하나
+2 → mat4 두 개
+```
+
+현재는 도형 하나에 적용할 변환 행렬 하나만 전달하므로 `1`을 사용합니다.
+여러 행렬을 연속된 배열로 전달하는 경우에는 개수를 늘릴 수 있습니다.
+
+행렬 하나의 크기는 `4 × 4 = 16`개의 `float`입니다.
+하지만 두 번째 인자는 `float` 개수가 아니라 **mat4 객체의 개수**라는 점에 주의해야 합니다.
+
+### Q4. `GL_FALSE`는 무엇을 전치하지 않는다는 뜻인가요?
+
+행렬의 행과 열을 서로 바꾸는 연산을 전치(transpose)라고 합니다.
+
+원래 행렬:
+
+```text
+[ a b c d ]
+[ e f g h ]
+[ i j k l ]
+[ m n o p ]
+```
+
+전치한 행렬:
+
+```text
+[ a e i m ]
+[ b f j n ]
+[ c g k o ]
+[ d h l p ]
+```
+
+`glUniformMatrix4fv`의 세 번째 인자가 `GL_FALSE`이면 OpenGL이 전달된 행렬을 전치하지 않고 사용합니다.
+
+```cpp
+GL_FALSE
+```
+
+는 다음 의미입니다.
+
+```text
+CPU에서 준비한 행렬 배치를 그대로 사용
+```
+
+반대로 `GL_TRUE`를 전달하면 OpenGL이 행과 열을 바꾼 뒤 사용합니다.
+
+현재 예제처럼 OpenGL 방식의 column-major 배열을 직접 구성했다면 일반적으로 다음을 사용합니다.
+
+```cpp
+GL_FALSE
+```
+
+행렬이 예상과 다르게 회전하거나 이동한다면 배열의 저장 순서와 `GL_FALSE` 설정이 서로 맞는지 확인해야 합니다.
+
+### Q5. `transform`은 왜 16개 `float` 배열의 시작 주소인가요?
+
+GLSL의 `mat4`는 4행 4열의 행렬이므로 숫자가 총 16개 필요합니다.
+
+```text
+4 × 4 = 16
+```
+
+C++에서는 이를 다음처럼 연속된 배열로 표현할 수 있습니다.
+
+```cpp
+float transform[16] = {
+    // column 0
+     1.0f, 0.0f, 0.0f, 0.0f,
+    // column 1
+     0.0f, 1.0f, 0.0f, 0.0f,
+    // column 2
+     0.0f, 0.0f, 1.0f, 0.0f,
+    // column 3
+     0.0f, 0.0f, 0.0f, 1.0f
+};
+```
+
+배열 이름 `transform`은 함수 인자로 전달될 때 첫 번째 요소의 주소로 변환됩니다.
+
+```cpp
+transform
+```
+
+은 다음과 비슷하게 사용됩니다.
+
+```cpp
+&transform[0]
+```
+
+따라서 `glUniformMatrix4fv`는 `transform`이 가리키는 메모리에서 16개의 `float`를 읽어 `mat4` 하나로 셰이더에 복사합니다.
+
+```text
+C++ 배열:
+[ f0 ][ f1 ][ f2 ] ... [ f15 ]
+   ↑
+transform 또는 &transform[0]
+```
+
+`glUniformMatrix4fv`의 마지막 인자는 `const GLfloat*`에 해당하는 행렬 데이터 주소를 요구하므로, `float[16]` 배열 이름을 그대로 전달할 수 있습니다.
+
+### Q6. 배열의 저장 순서가 왜 중요한가요?
+
+행렬의 숫자 16개가 메모리에 어떤 순서로 저장되는지 OpenGL이 알아야 행렬을 올바르게 해석할 수 있습니다.
+
+현재 예제처럼 column-major 순서를 사용하면 사람이 읽는 행렬:
+
+```text
+[ cosθ  -sinθ  0  offset ]
+[ sinθ   cosθ  0    0    ]
+[  0      0    1    0    ]
+[  0      0    0    1    ]
+```
+
+를 C++ 배열에서는 열 단위로 저장합니다.
+
+```cpp
+float transform[16] = {
+    cosine,  sine,    0.0f, 0.0f,
+   -sine,    cosine,  0.0f, 0.0f,
+    0.0f,    0.0f,    1.0f, 0.0f,
+    offset,  0.0f,    0.0f, 1.0f
+};
+```
+
+열 4의 첫 번째 값인 `offset`이 배열의 인덱스 `12`에 위치하는 이유도 이 저장 순서 때문입니다.
+
+```text
+transform[12] → x축 이동값
+transform[13] → y축 이동값
+transform[14] → z축 이동값
+```
+
+행 우선 순서로 배열을 작성하고 `GL_FALSE`를 사용하면 회전 방향이나 이동 결과가 예상과 다르게 나올 수 있습니다.
+
+### Q7. `transform`은 CPU 변수인가요, GPU 변수인가요?
+
+`transform`이라는 이름은 코드 위치에 따라 서로 다른 대상을 가리킬 수 있습니다.
+
+```cpp
+float transform[16];
+```
+
+는 CPU 메모리에 있는 C++ 배열입니다.
+
+```glsl
+uniform mat4 transform;
+```
+
+는 GPU의 셰이더 프로그램 안에 있는 GLSL uniform입니다.
+
+둘은 자동으로 연결되지 않습니다.
+다음 호출이 CPU 배열의 내용을 GPU uniform으로 복사합니다.
+
+```cpp
+glUniformMatrix4fv(
+    transform_location,
+    1,
+    GL_FALSE,
+    transform);
+```
+
+관계는 다음과 같습니다.
+
+```text
+C++ transform[16]
+    ↓ 마지막 인자로 주소 전달
+glUniformMatrix4fv
+    ↓ 16개 float 복사
+GLSL uniform mat4 transform
+    ↓
+gl_Position 계산에 사용
+```
+
+### Q8. 행렬을 전달하는 시점은 언제인가요?
+
+행렬을 사용할 셰이더 프로그램을 먼저 선택한 뒤, draw call 전에 전달합니다.
+
+```cpp
+glUseProgram(shader_program);
+glUniformMatrix4fv(
+    transform_location,
+    1,
+    GL_FALSE,
+    transform);
+
+glBindVertexArray(vertex_array);
+glDrawElements(...);
+```
+
+시간에 따라 행렬이 바뀌는 경우에는 행렬 배열을 매 프레임 새로 계산하고 `glUniformMatrix4fv`도 매 프레임 호출합니다.
+반면 고정된 행렬이라면 한 번 설정한 값을 여러 draw call에서 사용할 수 있습니다.

@@ -9,6 +9,7 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+
 namespace 
 {
     std::string read_file(const std::string& path)
@@ -130,13 +131,14 @@ int main()
     }
 
     GLint time_location = glGetUniformLocation(shader_program, "time");
-    GLint offset_location = glGetUniformLocation(shader_program, "offset_x");
+    GLint transform_location = glGetUniformLocation(shader_program, "transform");
 
     const float vertices[] = {
          0.0f,  0.6f,  1.0f, 0.0f, 0.0f, // position, red
         -0.6f, -0.6f, 0.0f, 1.0f, 0.0f, // position, green
          0.6f, -0.6f, 0.0f, 0.0f, 1.0f  // position, blue
     };
+
 
     glGenVertexArrays(1, &vertex_array);
     glGenBuffers(1, &vertex_buffer);
@@ -167,10 +169,20 @@ int main()
 
         glUseProgram(shader_program);
 
-        glUniform1f(time_location, static_cast<float>(glfwGetTime()));
-
+        const float time = static_cast<float>(glfwGetTime());
+        const float rotation_speed = 1.5;
+        const float angle = time * rotation_speed;
         const float offset = 0.4f * std::sin(static_cast<float>(glfwGetTime()));
-        glUniform1f(offset_location, offset);
+
+        const float transform[16] = {
+            std::cos(angle), std::sin(angle), 0.0f, 0.0f,
+            -std::sin(angle), std::cos(angle), 0.0f, 0.0f,
+            0.0f, 0.0f, 1.0f, 0.0f,
+            offset, 0.0f, 0.0f, 1.0f
+        };
+
+        glUniform1f(time_location, time);
+        glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform);
 
         glBindVertexArray(vertex_array);
         glDrawArrays(GL_TRIANGLES, 0, 3);
