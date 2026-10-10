@@ -118,12 +118,51 @@ int main()
     GLuint vertex_array = 0;
     GLuint vertex_buffer = 0;
     GLuint element_buffer = 0;
+    GLuint texture = 0;
 
     try
     {
         shader_program = create_shader_program(
             std::string(GRAPHICS_LAB_SHADER_DIR) + "/shader.vert",
             std::string(GRAPHICS_LAB_SHADER_DIR) + "/shader.frag");
+
+        const std::string texture_path = 
+            std::string(GRAPHICS_LAB_TEXTURE_DIR) + "/container.png";
+
+        int width = 0;
+        int height = 0;
+        int channels = 0;
+
+        stbi_set_flip_vertically_on_load(true);
+
+        unsigned char* pixels = stbi_load(
+            texture_path.c_str(),
+            &width,
+            &height,
+            &channels,
+            0
+        );
+        if (pixels == nullptr)
+        {
+            throw std::runtime_error(
+                "Failed to load texture: " + texture_path + "\n" + stbi_failure_reason());
+        }
+        
+        glGenTextures(1, &texture);
+
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+        GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
+
+        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
+        glGenerateMipmap(GL_TEXTURE_2D);
+
+        stbi_image_free(pixels);
     }
     catch (const std::exception& error)
     {
@@ -134,10 +173,10 @@ int main()
     }
 
     const float vertices[] = {
-        -0.6f,  0.6f,
-         0.6f,  0.6f,
-         0.6f, -0.6f,
-        -0.6f, -0.6f
+        -0.6f,  0.6f, 0.0f, 1.0f,
+         0.6f,  0.6f, 1.0f, 1.0f,
+         0.6f, -0.6f, 1.0f, 0.0f,
+        -0.6f, -0.6f, 0.0f, 0.0f
     };
 
     const unsigned int indices[] = {
@@ -148,18 +187,32 @@ int main()
     glGenVertexArrays(1, &vertex_array);
     glGenBuffers(1, &vertex_buffer);
     glGenBuffers(1, &element_buffer);
+
     glBindVertexArray(vertex_array);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+    
     glVertexAttribPointer(
         0,
         2,
         GL_FLOAT,
         GL_FALSE,
-        2 * sizeof(float),
+        4 * sizeof(float),
         nullptr);
+    
     glEnableVertexAttribArray(0);
+
+    glVertexAttribPointer(
+        1,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        4 * sizeof(float),
+        reinterpret_cast<void*>(2 * sizeof(float)));
+
+    glEnableVertexAttribArray(1);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
     glBufferData(
         GL_ELEMENT_ARRAY_BUFFER,
@@ -178,6 +231,11 @@ int main()
 
         glUseProgram(shader_program);
 
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        const GLint image_location = glGetUniformLocation(shader_program, "image");
+        glUniform1i(image_location, 0);
+
         glBindVertexArray(vertex_array);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
@@ -188,6 +246,7 @@ int main()
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteBuffers(1, &vertex_buffer);
     glDeleteBuffers(1, &element_buffer);
+    glDeleteTextures(1, &texture);
     glDeleteProgram(shader_program);
     glfwDestroyWindow(window);
     glfwTerminate();
