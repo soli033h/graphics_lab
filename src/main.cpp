@@ -1,19 +1,18 @@
 #include <cstdlib>
-#include <fstream>
 #include <iostream>
+#include <fstream>
 #include <stdexcept>
 #include <sstream>
-#include <string>
-
-#define STB_IMAGE_IMPLEMENTATION
-#include "../third_party/stb/stb_image.h"
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 
-namespace 
-{
+namespace
+{   
     std::string read_file(const std::string& path)
     {
         std::ifstream file(path);
@@ -36,6 +35,7 @@ namespace
 
         GLint success = GL_FALSE;
         glGetShaderiv(shader, GL_COMPILE_STATUS, &success);
+
         if (success != GL_TRUE)
         {
             GLint log_length = 0;
@@ -83,20 +83,26 @@ namespace
     {
         glViewport(0, 0, width, height);
     }
-} 
+}
 
 int main()
 {
-    glfwSetErrorCallback([](int error_code, const char* description) { std::cerr << "GLFW error (" << error_code << "): " << description << '\n';});
+    glfwSetErrorCallback([](int error_code, const char* description)
+    {
+        std::cerr << "GLFW error (" << error_code << "): "
+                  << description << '\n';
+    });
 
-    if (!glfwInit()) return EXIT_FAILURE;
+    if (!glfwInit())
+        return EXIT_FAILURE;
 
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow* window = glfwCreateWindow(800, 600, "OpenGL Window", nullptr, nullptr);
-    
+    GLFWwindow* window =
+        glfwCreateWindow(800, 600, "OpenGL Window", nullptr, nullptr);
+
     if (!window)
     {
         glfwTerminate();
@@ -114,112 +120,127 @@ int main()
         return EXIT_FAILURE;
     }
 
+    glEnable(GL_DEPTH_TEST);
+
     GLuint shader_program = 0;
     GLuint vertex_array = 0;
     GLuint vertex_buffer = 0;
-    GLuint element_buffer = 0;
-    GLuint texture = 0;
+
+    GLint model_location = -1;
+    GLint view_location = -1;
+    GLint projection_location = -1;
 
     try
     {
         shader_program = create_shader_program(
             std::string(GRAPHICS_LAB_SHADER_DIR) + "/shader.vert",
             std::string(GRAPHICS_LAB_SHADER_DIR) + "/shader.frag");
-
-        const std::string texture_path = 
-            std::string(GRAPHICS_LAB_TEXTURE_DIR) + "/container.png";
-
-        int width = 0;
-        int height = 0;
-        int channels = 0;
-
-        stbi_set_flip_vertically_on_load(true);
-
-        unsigned char* pixels = stbi_load(
-            texture_path.c_str(),
-            &width,
-            &height,
-            &channels,
-            0
-        );
-        if (pixels == nullptr)
-        {
-            throw std::runtime_error(
-                "Failed to load texture: " + texture_path + "\n" + stbi_failure_reason());
-        }
-        
-        glGenTextures(1, &texture);
-
-        glBindTexture(GL_TEXTURE_2D, texture);
-
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
-        GLenum format = (channels == 4) ? GL_RGBA : GL_RGB;
-
-        glTexImage2D(GL_TEXTURE_2D, 0, format, width, height, 0, format, GL_UNSIGNED_BYTE, pixels);
-        glGenerateMipmap(GL_TEXTURE_2D);
-
-        stbi_image_free(pixels);
     }
-    catch (const std::exception& error)
+    catch(const std::exception& e)
     {
-        std::cerr << error.what() << '\n';
+        std::cerr << e.what() << '\n';
         glfwDestroyWindow(window);
         glfwTerminate();
         return EXIT_FAILURE;
     }
 
+    model_location = glGetUniformLocation(shader_program, "model");
+
+    view_location = glGetUniformLocation(shader_program, "view");
+
+    projection_location = glGetUniformLocation(shader_program, "projection");
+
     const float vertices[] = {
-        -0.6f,  0.6f, 0.0f, 1.0f,
-         0.6f,  0.6f, 1.0f, 1.0f,
-         0.6f, -0.6f, 1.0f, 0.0f,
-        -0.6f, -0.6f, 0.0f, 0.0f
-    };
+        // Front face
+        -0.5f,  0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
 
-    const unsigned int indices[] = {
-        0, 1, 2,
-        0, 2, 3
-    };
+        // Back face
+        -0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
 
+        // Left face
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f, -0.5f,  0.5f,
+
+        // Right face
+         0.5f,  0.5f,  0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f, -0.5f, -0.5f,
+
+        // Top face
+        -0.5f,  0.5f, -0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+        -0.5f,  0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+
+        // Bottom face
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+        -0.5f, -0.5f,  0.5f
+    };
+    
     glGenVertexArrays(1, &vertex_array);
     glGenBuffers(1, &vertex_buffer);
-    glGenBuffers(1, &element_buffer);
 
     glBindVertexArray(vertex_array);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    
+
     glVertexAttribPointer(
         0,
-        2,
+        3,
         GL_FLOAT,
         GL_FALSE,
-        4 * sizeof(float),
+        3 * sizeof(float),
         nullptr);
     
     glEnableVertexAttribArray(0);
 
-    glVertexAttribPointer(
-        1,
-        2,
-        GL_FLOAT,
-        GL_FALSE,
-        4 * sizeof(float),
-        reinterpret_cast<void*>(2 * sizeof(float)));
+    int framebuffer_width = 0;
+    int framebuffer_height = 0;
 
-    glEnableVertexAttribArray(1);
-    glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glfwGetFramebufferSize(
+        window,
+        &framebuffer_width,
+        &framebuffer_height);
 
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
-    glBufferData(
-        GL_ELEMENT_ARRAY_BUFFER,
-        sizeof(indices),
-        indices,
-        GL_STATIC_DRAW);
-    glBindVertexArray(0);
+    const glm::vec3 camera_position(0.0f, 0.0f, 3.0f);
+    const glm::vec3 camera_target(0.0f, 0.0f, 0.0f);
+    const glm::vec3 camera_up(0.0f, 1.0f, 0.0f);
+
+    const glm::mat4 view = glm::lookAt(
+        camera_position,
+        camera_target,
+        camera_up);
+
+    const float aspect_ratio = static_cast<float>(framebuffer_width) / static_cast<float>(framebuffer_height);
+
+    const glm::mat4 projection = glm::perspective(
+        glm::radians(45.0f),
+        aspect_ratio,
+        0.1f,
+        100.0f);
 
     while (!glfwWindowShouldClose(window))
     {
@@ -227,27 +248,42 @@ int main()
             glfwSetWindowShouldClose(window, GLFW_TRUE);
 
         glClearColor(0.08f, 0.08f, 0.12f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         glUseProgram(shader_program);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture);
-        const GLint image_location = glGetUniformLocation(shader_program, "image");
-        glUniform1i(image_location, 0);
+        const float time = static_cast<float>(glfwGetTime());
+
+        glm::mat4 model(1.0f);
+
+        model = glm::rotate(model, time, glm::vec3(0.0f, 1.0f, 0.0f));
+
+        glUniformMatrix4fv(
+            model_location,
+            1,
+            GL_FALSE,
+            glm::value_ptr(model));
+
+        glUniformMatrix4fv(
+            view_location,
+            1,
+            GL_FALSE,
+            glm::value_ptr(view));
+
+        glUniformMatrix4fv(
+            projection_location,
+            1,
+            GL_FALSE,
+            glm::value_ptr(projection));
 
         glBindVertexArray(vertex_array);
-        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
 
-    glDeleteVertexArrays(1, &vertex_array);
-    glDeleteBuffers(1, &vertex_buffer);
-    glDeleteBuffers(1, &element_buffer);
-    glDeleteTextures(1, &texture);
-    glDeleteProgram(shader_program);
     glfwDestroyWindow(window);
     glfwTerminate();
     return EXIT_SUCCESS;

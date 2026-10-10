@@ -35,6 +35,14 @@ target_include_directories(graphics_lab_glad
 
 target_compile_features(graphics_lab_glad PUBLIC c_std_99)
 
+FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG 1.0.1
+    GIT_SHALLOW TRUE
+)
+FetchContent_MakeAvailable(glm)
+
 # Link this target to an application that uses modern OpenGL.
 add_library(graphics_lab_options INTERFACE)
 
@@ -54,7 +62,8 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp")
     target_link_libraries(graphics_lab
         PRIVATE
             graphics_lab_options
-    )
+            glm::glm
+        )
 
     target_compile_definitions(graphics_lab
         PRIVATE
