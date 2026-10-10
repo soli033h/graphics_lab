@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <cmath>
 #include <fstream>
 #include <iostream>
 #include <stdexcept>
@@ -115,6 +114,7 @@ int main()
     GLuint shader_program = 0;
     GLuint vertex_array = 0;
     GLuint vertex_buffer = 0;
+    GLuint element_buffer = 0;
 
     try
     {
@@ -130,33 +130,39 @@ int main()
         return EXIT_FAILURE;
     }
 
-    GLint time_location = glGetUniformLocation(shader_program, "time");
-    GLint transform_location = glGetUniformLocation(shader_program, "transform");
-
     const float vertices[] = {
-         0.0f,  0.6f,  1.0f, 0.0f, 0.0f, // position, red
-        -0.6f, -0.6f, 0.0f, 1.0f, 0.0f, // position, green
-         0.6f, -0.6f, 0.0f, 0.0f, 1.0f  // position, blue
+        -0.6f,  0.6f,
+         0.6f,  0.6f,
+         0.6f, -0.6f,
+        -0.6f, -0.6f
     };
 
+    const unsigned int indices[] = {
+        0, 1, 2,
+        0, 2, 3
+    };
 
     glGenVertexArrays(1, &vertex_array);
     glGenBuffers(1, &vertex_buffer);
+    glGenBuffers(1, &element_buffer);
     glBindVertexArray(vertex_array);
     glBindBuffer(GL_ARRAY_BUFFER, vertex_buffer);
     glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-    constexpr GLsizei stride = 5 * sizeof(float);
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, stride, nullptr);
-    glEnableVertexAttribArray(0);
     glVertexAttribPointer(
-        1,
-        3,
+        0,
+        2,
         GL_FLOAT,
         GL_FALSE,
-        stride,
-        reinterpret_cast<void*>(2 * sizeof(float)));
-    glEnableVertexAttribArray(1);
+        2 * sizeof(float),
+        nullptr);
+    glEnableVertexAttribArray(0);
     glBindBuffer(GL_ARRAY_BUFFER, 0);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, element_buffer);
+    glBufferData(
+        GL_ELEMENT_ARRAY_BUFFER,
+        sizeof(indices),
+        indices,
+        GL_STATIC_DRAW);
     glBindVertexArray(0);
 
     while (!glfwWindowShouldClose(window))
@@ -169,23 +175,8 @@ int main()
 
         glUseProgram(shader_program);
 
-        const float time = static_cast<float>(glfwGetTime());
-        const float rotation_speed = 1.5;
-        const float angle = time * rotation_speed;
-        const float offset = 0.4f * std::sin(static_cast<float>(glfwGetTime()));
-
-        const float transform[16] = {
-            std::cos(angle), std::sin(angle), 0.0f, 0.0f,
-            -std::sin(angle), std::cos(angle), 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            offset, 0.0f, 0.0f, 1.0f
-        };
-
-        glUniform1f(time_location, time);
-        glUniformMatrix4fv(transform_location, 1, GL_FALSE, transform);
-
         glBindVertexArray(vertex_array);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
 
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -193,6 +184,7 @@ int main()
 
     glDeleteVertexArrays(1, &vertex_array);
     glDeleteBuffers(1, &vertex_buffer);
+    glDeleteBuffers(1, &element_buffer);
     glDeleteProgram(shader_program);
     glfwDestroyWindow(window);
     glfwTerminate();
